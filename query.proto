@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "./query";
+
+service Query {
+  rpc GetMessages (GetMessagesRequest) returns (GetMessagesReply) {}
+}
+
+message GetMessagesRequest {
+  int32 channel_id = 1;
+}
+
+message Message {
+  int32 from_id = 1;
+  string message = 2;
+}
+
+message GetMessagesReply {
+  repeated Message messages = 1;
+}
