@@ -1,84 +1,96 @@
 package worker
 
 import (
+	"github.com/google/uuid"
 	"log"
 	"sync"
 )
 
 type Worker[T any] struct {
+	id      uuid.UUID
 	c       chan struct{}
 	fn      func() T
 	mu      sync.RWMutex
-	started uint8
+	running bool
 	data    T
 }
 
 func New[T any](fn func() T) *Worker[T] {
 	return &Worker[T]{
-		c:       make(chan struct{}),
+		id:      uuid.New(),
+		c:       nil,
 		fn:      fn,
 		mu:      sync.RWMutex{},
-		started: 0,
+		running: false,
 	}
 }
 
-func (wkr *Worker[T]) start() {
+func (wkr *Worker[T]) bootstrap() {
 	wkr.mu.Lock()
-	if wkr.started == 0 {
-		wkr.started = 1
+	if !wkr.running {
+		log.Printf("[DEBUG] <WID: %s> Bootrapping\n", wkr.id.String())
+		wkr.c = make(chan struct{})
+		wkr.running = true
 		go func() {
+			log.Printf("[DEBUG] <WID: %s> Executing worker\n", wkr.id.String())
 			wkr.data = wkr.fn()
 			wkr.mu.Lock()
-			wkr.started = 0
+			wkr.running = false
 			wkr.mu.Unlock()
 			close(wkr.c)
-			wkr.c = make(chan struct{})
 		}()
 	}
 	wkr.mu.Unlock()
 }
 
+func (wkr *Worker[T]) Id() uuid.UUID {
+	return wkr.Id()
+}
+
+func (wkr *Worker[T]) Subscribe(fn func(T)) (subscriber *Subscriber[T]) {
+	defer func() {
+		log.Printf("[DEBUG] <WID: %s, SID: %s> Subscribed to worker\n", wkr.id.String(), subscriber.subscriberId.String())
+	}()
+
+	wkr.mu.RLock()
+	if !wkr.running {
+		wkr.mu.RUnlock()
+		wkr.bootstrap()
+		return newSubscriber(wkr, fn)
+	}
+
+	defer wkr.mu.RUnlock()
+	return newSubscriber(wkr, fn)
+}
+
 type Subscriber[T any] struct {
-	c    chan struct{}
-	stop chan struct{}
+	subscriberId uuid.UUID
+	workerId     uuid.UUID
+	c            chan struct{}
+	stop         chan struct{}
 }
 
 func newSubscriber[T any](wkr *Worker[T], fn func(T)) *Subscriber[T] {
-	sub := &Subscriber[T]{
-		c:    wkr.c,
-		stop: make(chan struct{}),
+	s := &Subscriber[T]{
+		subscriberId: uuid.New(),
+		workerId:     wkr.id,
+		c:            wkr.c,
+		stop:         make(chan struct{}),
 	}
 
 	go func() {
 		select {
 		case <-wkr.c:
-			log.Println("received", wkr.data)
+			log.Printf("[DEBUG] <WID: %s, SID: %s> Received %v\n", wkr.id.String(), s.subscriberId.String(), wkr.data)
 			fn(wkr.data)
-		case <-sub.stop:
+		case <-s.stop:
+			log.Printf("[DEBUG] <WID: %s, SID: %s> Received stop signal\n", wkr.id.String(), s.subscriberId.String())
 		}
 	}()
 
-	return sub
+	return s
 }
 
 func (s *Subscriber[T]) Unsubscribe() {
 	close(s.stop)
-}
-
-func (wkr *Worker[T]) Subscribe(fn func(T)) (*Subscriber[T], bool) {
-	wkr.mu.RLock()
-	switch wkr.started {
-	case 0:
-		log.Println("starting")
-		wkr.mu.RUnlock()
-		wkr.start()
-		log.Println("started")
-		return newSubscriber(wkr, fn), true
-	case 1:
-		defer wkr.mu.RUnlock()
-		return newSubscriber(wkr, fn), true
-	default:
-		defer wkr.mu.RUnlock()
-		return nil, false
-	}
 }
