@@ -4,17 +4,26 @@ import (
 	"context"
 	"data-service/query"
 	"data-service/requestctx"
+	"data-service/workrunner"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/hashicorp/logutils"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 )
 
 func main() {
-	querySvr := queryServer{
-		getMessagesOrch:    NewOrchestrator[[]*query.Message](),
-		getMessagesWorkers: nil,
+	filter := &logutils.LevelFilter{
+		Levels:   []logutils.LogLevel{"DEBUG", "WARN", "ERROR", "INFO"},
+		MinLevel: "DEBUG",
+		Writer:   os.Stdout,
+	}
+	log.SetOutput(filter)
+
+	querySvr := &queryServer{
+		Messages: workrunner.New[int32, []*query.Message](),
 	}
 
 	addr := fmt.Sprintf("%s:%d", "localhost", 3000)
