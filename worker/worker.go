@@ -28,7 +28,7 @@ func New[T any](fn func() T) *Worker[T] {
 func (wkr *Worker[T]) bootstrap() {
 	wkr.mu.Lock()
 	if !wkr.running {
-		log.Printf("[DEBUG] <WID: %s> Bootrapping\n", wkr.id.String())
+		log.Printf("[DEBUG] <WID: %s> Bootstrapping\n", wkr.id.String())
 		wkr.c = make(chan struct{})
 		wkr.running = true
 		go func() {
@@ -36,17 +36,18 @@ func (wkr *Worker[T]) bootstrap() {
 			wkr.data = wkr.fn()
 			wkr.mu.Lock()
 			wkr.running = false
-			wkr.mu.Unlock()
+			log.Printf("[DEBUG] <WID: %s> Attempting to close worker\n", wkr.id.String())
 			close(wkr.c)
+			wkr.mu.Unlock()
 		}()
 	}
 	wkr.mu.Unlock()
 }
 
-func (wkr *Worker[T]) Id() uuid.UUID {
-	return wkr.Id()
-}
-
+// Subscribe subscribes to the worker and executes the callback function on worker completion.
+// Worker starts its execution upon the first subscription.
+// If the worker has been executed already, it re-executes the worker.
+// Therefore, workers are reusable.
 func (wkr *Worker[T]) Subscribe(fn func(T)) (subscriber *Subscriber[T]) {
 	defer func() {
 		log.Printf("[DEBUG] <WID: %s, SID: %s> Subscribed to worker\n", wkr.id.String(), subscriber.subscriberId.String())
@@ -61,6 +62,10 @@ func (wkr *Worker[T]) Subscribe(fn func(T)) (subscriber *Subscriber[T]) {
 
 	defer wkr.mu.RUnlock()
 	return newSubscriber(wkr, fn)
+}
+
+func (wkr *Worker[T]) Id() uuid.UUID {
+	return wkr.id
 }
 
 type Subscriber[T any] struct {
