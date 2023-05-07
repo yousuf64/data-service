@@ -31,11 +31,14 @@ static_resources:
                             grpc: {}
                           route:
                             cluster: grpc_api
+                            hash_policy:
+                              - header:
+                                  header_name: x-route-key
 
   clusters:
     - name: grpc_api
       type: STRICT_DNS
-      lb_policy: ROUND_ROBIN
+      lb_policy: MAGLEV
       dns_lookup_family: V4_ONLY
       http2_protocol_options: {} # Upstream on HTTP2
       load_assignment:
