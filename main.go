@@ -15,6 +15,8 @@ import (
 )
 
 func main() {
+	port := os.Args[1]
+
 	filter := &logutils.LevelFilter{
 		Levels:   []logutils.LogLevel{"DEBUG", "WARN", "ERROR", "INFO"},
 		MinLevel: "DEBUG",
@@ -26,7 +28,7 @@ func main() {
 		Messages: workrunner.New[int32, []*query.Message](),
 	}
 
-	addr := fmt.Sprintf("%s:%d", "localhost", 3000)
+	addr := fmt.Sprintf("%s:%s", "127.0.0.1", port)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatal(err)
