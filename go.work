@@ -1,0 +1,8 @@
+go 1.20
+
+use (
+	message-query-service
+	messages-api
+	pkg
+	proto/gen
+)

@@ -24,7 +24,7 @@ func (ctx *RequestCtx) Value(key any) any {
 	if key == ctxKey {
 		return ctx
 	}
-	return ctx.Value(key)
+	return ctx.Context.Value(key)
 }
 
 func FromContext(ctx context.Context) uuid.UUID {

@@ -1,7 +1,7 @@
 package workrunner
 
 import (
-	"data-service/worker"
+	"github.com/yousuf64/request-coalescing/message-query-service/worker"
 	"log"
 	"sync"
 )
