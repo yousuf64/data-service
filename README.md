@@ -7,7 +7,7 @@
 * Forwards query requests to the message-query-service via the `envoy-load-balancer`.
 
 `envoy-load-balancer`
-* Routes requests to the appropriate node based on the x-bucket-id in the request header.
+* Routes requests to the appropriate node based on the `x-route-key` in the request header.
 
 `message-query-service`
 * For each incoming query, spawns a worker to fetch results from the database and waits for the response.
